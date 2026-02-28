@@ -15,6 +15,13 @@ const userRoutes = require('./routes/user');
 
 const app = express();
 console.log('✅ Express app created');
+// Load environment variables
+dotenv.config();
+console.log('✅ Environment variables loaded');
+console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
+console.log('🔍 PORT:', process.env.PORT);
+console.log('🔍 MONGO_URL exists:', !!process.env.MONGO_URL);
+console.log('🔍 JWT_SECRET exists:', !!process.env.JWT_SECRET);
 
 // Middleware dengan logging
 app.use((req, res, next) => {
