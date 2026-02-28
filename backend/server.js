@@ -39,7 +39,7 @@ console.log('\n========== RAILWAY PATH DEBUG ==========');
 console.log('__dirname:', __dirname);
 console.log('Current working directory:', process.cwd());
 
-// List semua file di current directory
+// List semua file di root untuk debugging
 console.log('\n📁 Files in current directory:');
 try {
   const files = fs.readdirSync(process.cwd());
@@ -57,17 +57,18 @@ try {
   console.error('Error reading /app dir:', err);
 }
 
-// Path yang mungkin benar
-const possiblePaths = [
-  path.join(__dirname, '../frontend'),                    // /app/backend/../frontend
-  path.join(process.cwd(), 'frontend'),                   // /app/frontend
-  '/app/frontend',
-  path.join('/app', 'frontend'),
-  path.join(__dirname, '../../frontend'),                  // /frontend
-  '/frontend',
-];
-
+// Cari folder frontend dengan berbagai kemungkinan
 let frontendPath = null;
+const possiblePaths = [
+  path.join(process.cwd(), 'frontend'),                    // /app/frontend
+  path.join(__dirname, 'frontend'),                         // /app/backend/frontend
+  path.join(__dirname, '../frontend'),                      // /app/frontend
+  '/app/frontend',                                          // Hardcoded
+  '/frontend',                                              // /frontend
+  path.join(process.cwd(), 'blast-app-v1', 'frontend'),    // /app/blast-app-v1/frontend
+  path.join('/app', 'blast-app-v1', 'frontend'),
+  path.join('/home', 'harmed', 'blast-app', 'frontend'),   // Path lokal
+];
 
 for (const p of possiblePaths) {
   console.log(`\n🔍 Checking path: ${p}`);
@@ -79,33 +80,42 @@ for (const p of possiblePaths) {
       const contents = fs.readdirSync(p);
       console.log(`  Contents:`, contents);
       
-      // Cek folder admin dan user
+      // Cek apakah ada folder admin
       const adminPath = path.join(p, 'admin');
-      const userPath = path.join(p, 'user');
-      
       if (fs.existsSync(adminPath)) {
-        console.log(`  ✅ Admin folder FOUND at ${adminPath}`);
-        console.log(`  Admin files:`, fs.readdirSync(adminPath));
+        console.log(`  ✅ Admin folder ditemukan di ${adminPath}`);
+        console.log(`  Admin contents:`, fs.readdirSync(adminPath));
         frontendPath = p;
-      } else {
-        console.log(`  ❌ Admin folder NOT found at ${adminPath}`);
+        break;
       }
       
+      // Cek apakah ada folder user
+      const userPath = path.join(p, 'user');
       if (fs.existsSync(userPath)) {
-        console.log(`  ✅ User folder FOUND at ${userPath}`);
-        console.log(`  User files:`, fs.readdirSync(userPath));
+        console.log(`  ✅ User folder ditemukan di ${userPath}`);
+        console.log(`  User contents:`, fs.readdirSync(userPath));
         frontendPath = p;
-      } else {
-        console.log(`  ❌ User folder NOT found at ${userPath}`);
+        break;
       }
     } catch (err) {
-      console.error(`  ❌ Error reading directory:`, err.message);
+      console.log(`  ❌ Error reading: ${err.message}`);
     }
   }
 }
 
+// Jika masih null, gunakan fallback
+if (!frontendPath) {
+  console.log('\n⚠️ Frontend path tidak ditemukan, menggunakan fallback');
+  frontendPath = '/app/frontend';
+  console.log(`Menggunakan fallback path: ${frontendPath}`);
+  
+  // Buat direktori virtual untuk testing
+  console.log('Catatan: Path ini mungkin tidak ada, akan menggunakan alternatif');
+}
+
 console.log(`\n✅ FINAL FRONTEND PATH: ${frontendPath}`);
 console.log('========== END PATH DEBUG ==========\n');
+
 // Middleware dengan logging
 app.use((req, res, next) => {
   console.log(`\n📨 ${req.method} ${req.url}`);
@@ -122,59 +132,126 @@ app.use(express.urlencoded({ extended: true }));
 console.log('✅ URL encoded middleware');
 
 // ========== SERVE STATIC FILES ==========
-// Serve assets
+// Serve assets (jika ada)
 try {
   const assetsPath = path.join(frontendPath, 'assets');
   if (fs.existsSync(assetsPath)) {
     app.use('/assets', express.static(assetsPath));
     console.log('✅ Assets static middleware - serving from:', assetsPath);
   } else {
-    console.log('⚠️ Assets folder not found at:', assetsPath);
+    // Coba cari assets di lokasi lain
+    const altAssetsPath = path.join(process.cwd(), 'frontend', 'assets');
+    if (fs.existsSync(altAssetsPath)) {
+      app.use('/assets', express.static(altAssetsPath));
+      console.log('✅ Assets found at alternative path:', altAssetsPath);
+    } else {
+      console.log('⚠️ Assets folder not found');
+    }
   }
 } catch (err) {
   console.error('❌ Error setting up assets:', err);
 }
 
 // ========== ROUTES MANUAL UNTUK HTML ==========
+// Fungsi helper untuk serve file dengan fallback
+function serveHTML(res, filePath, altPaths = []) {
+  console.log(`📄 Trying to serve: ${filePath}`);
+  
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  
+  // Coba alternative paths
+  for (const altPath of altPaths) {
+    console.log(`📄 Trying alternative: ${altPath}`);
+    if (fs.existsSync(altPath)) {
+      return res.sendFile(altPath);
+    }
+  }
+  
+  // Kirim halaman error
+  res.status(404).send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>404 - File Not Found</title>
+        <style>
+          body { font-family: Arial; padding: 40px; background: #f5f5f5; }
+          .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+          h1 { color: #e74c3c; }
+          pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
+          .path { color: #2980b9; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>❌ 404 - File Not Found</h1>
+          <p>Tried to serve:</p>
+          <pre class="path">${filePath}</pre>
+          
+          <h3>Alternative paths tried:</h3>
+          <ul>
+            ${altPaths.map(p => `<li><pre>${p}</pre></li>`).join('')}
+          </ul>
+          
+          <h3>Debug Info:</h3>
+          <pre>
+frontendPath: ${frontendPath}
+__dirname: ${__dirname}
+cwd: ${process.cwd()}
+          </pre>
+          
+          <p>Please check your file structure and try again.</p>
+        </div>
+      </body>
+    </html>
+  `);
+}
+
 // Halaman Admin
 app.get('/admin', (req, res) => {
   try {
-    const filePath = path.join(frontendPath, 'admin', 'index.html');
-    console.log(`📄 Trying to serve admin login: ${filePath}`);
-    
-    if (fs.existsSync(filePath)) {
-      res.sendFile(filePath);
-    } else {
-      console.error(`❌ Admin login file not found at: ${filePath}`);
-      res.status(404).send(`
-        <html>
-          <head><title>404 Not Found</title></head>
-          <body>
-            <h1>404 - Admin Login Page Not Found</h1>
-            <p>Looking for: ${filePath}</p>
-            <p>Frontend path: ${frontendPath}</p>
-            <p>Please check your file structure.</p>
-          </body>
-        </html>
-      `);
+    if (!frontendPath) {
+      throw new Error('frontendPath is null');
     }
+    
+    const filePath = path.join(frontendPath, 'admin', 'index.html');
+    const altPaths = [
+      path.join(process.cwd(), 'frontend', 'admin', 'index.html'),
+      path.join('/app', 'frontend', 'admin', 'index.html'),
+      path.join(__dirname, '../frontend/admin/index.html')
+    ];
+    
+    serveHTML(res, filePath, altPaths);
   } catch (err) {
     console.error('❌ Error serving /admin:', err);
-    res.status(500).send('Internal Server Error');
+    res.status(500).send(`
+      <html>
+        <head><title>500 Internal Error</title></head>
+        <body>
+          <h1>500 - Internal Server Error</h1>
+          <p>Error: ${err.message}</p>
+          <pre>${err.stack}</pre>
+        </body>
+      </html>
+    `);
   }
 });
 
 app.get('/admin/dashboard', (req, res) => {
   try {
-    const filePath = path.join(frontendPath, 'admin', 'dashboard.html');
-    console.log(`📄 Trying to serve admin dashboard: ${filePath}`);
-    
-    if (fs.existsSync(filePath)) {
-      res.sendFile(filePath);
-    } else {
-      console.error(`❌ Admin dashboard file not found at: ${filePath}`);
-      res.status(404).send('Admin dashboard not found');
+    if (!frontendPath) {
+      throw new Error('frontendPath is null');
     }
+    
+    const filePath = path.join(frontendPath, 'admin', 'dashboard.html');
+    const altPaths = [
+      path.join(process.cwd(), 'frontend', 'admin', 'dashboard.html'),
+      path.join('/app', 'frontend', 'admin', 'dashboard.html'),
+      path.join(__dirname, '../frontend/admin/dashboard.html')
+    ];
+    
+    serveHTML(res, filePath, altPaths);
   } catch (err) {
     console.error('❌ Error serving /admin/dashboard:', err);
     res.status(500).send('Internal Server Error');
@@ -184,15 +261,18 @@ app.get('/admin/dashboard', (req, res) => {
 // Halaman User
 app.get('/user', (req, res) => {
   try {
-    const filePath = path.join(frontendPath, 'user', 'index.html');
-    console.log(`📄 Trying to serve user login: ${filePath}`);
-    
-    if (fs.existsSync(filePath)) {
-      res.sendFile(filePath);
-    } else {
-      console.error(`❌ User login file not found at: ${filePath}`);
-      res.status(404).send('User login page not found');
+    if (!frontendPath) {
+      throw new Error('frontendPath is null');
     }
+    
+    const filePath = path.join(frontendPath, 'user', 'index.html');
+    const altPaths = [
+      path.join(process.cwd(), 'frontend', 'user', 'index.html'),
+      path.join('/app', 'frontend', 'user', 'index.html'),
+      path.join(__dirname, '../frontend/user/index.html')
+    ];
+    
+    serveHTML(res, filePath, altPaths);
   } catch (err) {
     console.error('❌ Error serving /user:', err);
     res.status(500).send('Internal Server Error');
@@ -201,15 +281,18 @@ app.get('/user', (req, res) => {
 
 app.get('/user/dashboard', (req, res) => {
   try {
-    const filePath = path.join(frontendPath, 'user', 'dashboard.html');
-    console.log(`📄 Trying to serve user dashboard: ${filePath}`);
-    
-    if (fs.existsSync(filePath)) {
-      res.sendFile(filePath);
-    } else {
-      console.error(`❌ User dashboard file not found at: ${filePath}`);
-      res.status(404).send('User dashboard not found');
+    if (!frontendPath) {
+      throw new Error('frontendPath is null');
     }
+    
+    const filePath = path.join(frontendPath, 'user', 'dashboard.html');
+    const altPaths = [
+      path.join(process.cwd(), 'frontend', 'user', 'dashboard.html'),
+      path.join('/app', 'frontend', 'user', 'dashboard.html'),
+      path.join(__dirname, '../frontend/user/dashboard.html')
+    ];
+    
+    serveHTML(res, filePath, altPaths);
   } catch (err) {
     console.error('❌ Error serving /user/dashboard:', err);
     res.status(500).send('Internal Server Error');
@@ -218,15 +301,18 @@ app.get('/user/dashboard', (req, res) => {
 
 app.get('/user/register', (req, res) => {
   try {
-    const filePath = path.join(frontendPath, 'user', 'register.html');
-    console.log(`📄 Trying to serve user register: ${filePath}`);
-    
-    if (fs.existsSync(filePath)) {
-      res.sendFile(filePath);
-    } else {
-      console.error(`❌ User register file not found at: ${filePath}`);
-      res.status(404).send('User register page not found');
+    if (!frontendPath) {
+      throw new Error('frontendPath is null');
     }
+    
+    const filePath = path.join(frontendPath, 'user', 'register.html');
+    const altPaths = [
+      path.join(process.cwd(), 'frontend', 'user', 'register.html'),
+      path.join('/app', 'frontend', 'user', 'register.html'),
+      path.join(__dirname, '../frontend/user/register.html')
+    ];
+    
+    serveHTML(res, filePath, altPaths);
   } catch (err) {
     console.error('❌ Error serving /user/register:', err);
     res.status(500).send('Internal Server Error');
@@ -236,13 +322,29 @@ app.get('/user/register', (req, res) => {
 // Test route untuk cek server
 app.get('/test', (req, res) => {
   console.log('✅ Test route accessed');
-  res.json({ 
+  
+  // Kumpulkan info debug
+  const debug = {
     message: 'Server is working!',
     frontendPath: frontendPath,
     nodeEnv: process.env.NODE_ENV,
     port: process.env.PORT,
-    mongodbConnected: mongoose.connection.readyState === 1
-  });
+    mongodbConnected: mongoose.connection.readyState === 1,
+    currentDir: process.cwd(),
+    dirname: __dirname,
+    files: {}
+  };
+  
+  // Coba baca beberapa direktori
+  try {
+    debug.files.currentDir = fs.readdirSync(process.cwd());
+  } catch (e) {}
+  
+  try {
+    debug.files.appDir = fs.readdirSync('/app');
+  } catch (e) {}
+  
+  res.json(debug);
 });
 
 // API Routes
@@ -266,10 +368,19 @@ app.use((req, res) => {
   
   // Cek apakah ini request untuk file HTML statis
   if (req.url.endsWith('.html')) {
-    const possibleFile = path.join(frontendPath, req.url);
-    if (fs.existsSync(possibleFile)) {
-      console.log(`📄 File exists tapi tidak terdaftar: ${possibleFile}`);
-      return res.sendFile(possibleFile);
+    // Coba cari file di berbagai lokasi
+    const possibleLocations = [
+      path.join(frontendPath, req.url),
+      path.join(process.cwd(), 'frontend', req.url),
+      path.join('/app', 'frontend', req.url),
+      path.join(__dirname, '../frontend', req.url)
+    ];
+    
+    for (const loc of possibleLocations) {
+      if (fs.existsSync(loc)) {
+        console.log(`📄 File found at: ${loc}`);
+        return res.sendFile(loc);
+      }
     }
   }
   
