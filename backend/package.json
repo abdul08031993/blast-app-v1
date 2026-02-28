@@ -1,30 +1,10 @@
 {
-  "name": "blast-app",
+  "name": "blast-app-backend",
   "version": "1.0.0",
-  "description": "Aplikasi Blast Messaging",
-  "main": "backend/server.js",
   "scripts": {
-    "start": "node backend/server.js",
-    "dev": "nodemon backend/server.js"
+    "start": "node server.js"
   },
   "dependencies": {
-    "@hapi/boom": "^10.0.1",
-    "@whiskeysockets/baileys": "^6.5.0",
-    "bcryptjs": "^2.4.3",
-    "cors": "^2.8.6",
-    "dotenv": "^16.6.1",
-    "express": "^4.22.1",
-    "express-session": "^1.17.3",
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^7.8.9",
-    "pino": "^10.3.1",
-    "puppeteer": "^24.37.5",
-    "qrcode": "^1.5.4",
-    "qrcode-terminal": "^0.12.0",
-    "socket.io": "^4.7.2",
-    "whatsapp-web.js": "^1.34.6"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
+    "express": "^4.18.2"
   }
 }
