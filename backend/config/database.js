@@ -2,19 +2,22 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    console.log('🔍 MONGODB_URI exists:', !!process.env.MONGO_URL);
-    console.log('🔍 MONGODB_URI value starts with:', process.env.MONGO_URL?.substring(0, 20));
+    // Gunakan MONGODB_URI dari environment variable
+    const mongoURI = process.env.MONGODB_URI;
     
-    await mongoose.connect(process.env.MONGO_URL, {
-      serverSelectionTimeoutMS: 5000, // Timeout 5 detik
+    console.log('🔍 Mencoba konek ke MongoDB...');
+    console.log('📍 URI exists:', !!mongoURI);
+    
+    await mongoose.connect(mongoURI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     });
+    
     console.log('✅ MongoDB Connected...');
   } catch (err) {
-    console.error('❌ Database connection error details:');
-    console.error('Name:', err.name);
-    console.error('Message:', err.message);
-    console.error('Code:', err.code);
-    process.exit(1);
+    console.error('❌ Database connection error:', err.message);
+    // Jangan exit, biarkan server tetap jalan
+    console.log('⚠️ Server tetap jalan tanpa database');
   }
 };
 
