@@ -18,7 +18,7 @@ console.log('🔍 PORT:', process.env.PORT);
 console.log('🔍 MONGO_URL exists:', !!process.env.MONGO_URL);
 console.log('🔍 JWT_SECRET exists:', !!process.env.JWT_SECRET);
 
-// Import dengan try-catch
+// Import routes dengan error handling
 let connectDB, authRoutes, adminRoutes, userRoutes;
 try {
   connectDB = require('./config/database');
@@ -34,22 +34,25 @@ try {
 const app = express();
 console.log('✅ Express app created');
 
-// ========== DEBUG PATH ==========
-console.log('\n========== DEBUG PATH ==========');
+// ========== PATH DEBUG UNTUK RAILWAY ==========
+console.log('\n========== RAILWAY PATH DEBUG ==========');
 console.log('__dirname:', __dirname);
 console.log('Current working directory:', process.cwd());
 
+// Path yang mungkin benar untuk Railway
 const possiblePaths = [
-  path.join(__dirname, '../frontend'),
-  path.join(__dirname, 'frontend'),
-  '/app/frontend',
-  path.join(process.cwd(), 'frontend'),
-  path.join(process.cwd(), '../frontend')
+  path.join(__dirname, '../frontend'),                    // /app/backend/../frontend = /app/frontend
+  path.join(process.cwd(), 'frontend'),                   // /app/frontend
+  '/app/frontend',                                         // Hardcoded path
+  path.join('/app', 'frontend'),                           // /app/frontend
+  path.join(__dirname, '../../frontend'),                  // /frontend
+  '/frontend',                                             // /frontend
 ];
 
 let frontendPath = null;
-possiblePaths.forEach((p, i) => {
-  console.log(`\nPath ${i+1}: ${p}`);
+
+for (const p of possiblePaths) {
+  console.log(`\n🔍 Checking path: ${p}`);
   const exists = fs.existsSync(p);
   console.log(`  Exists: ${exists}`);
   
@@ -58,46 +61,43 @@ possiblePaths.forEach((p, i) => {
       const contents = fs.readdirSync(p);
       console.log(`  Contents:`, contents);
       
-      // Cek isi folder admin dan user
+      // Cek folder admin dan user
       const adminPath = path.join(p, 'admin');
       const userPath = path.join(p, 'user');
       const assetsPath = path.join(p, 'assets');
       
       if (fs.existsSync(adminPath)) {
-        console.log(`  ✅ Admin folder found`);
-        console.log(`  Admin contents:`, fs.readdirSync(adminPath));
-        if (!frontendPath) frontendPath = p;
+        console.log(`  ✅ Admin folder FOUND at ${adminPath}`);
+        console.log(`  Admin files:`, fs.readdirSync(adminPath));
+        frontendPath = p;
       }
       if (fs.existsSync(userPath)) {
-        console.log(`  ✅ User folder found`);
-        console.log(`  User contents:`, fs.readdirSync(userPath));
-        if (!frontendPath) frontendPath = p;
+        console.log(`  ✅ User folder FOUND at ${userPath}`);
+        console.log(`  User files:`, fs.readdirSync(userPath));
+        frontendPath = p;
       }
       if (fs.existsSync(assetsPath)) {
-        console.log(`  ✅ Assets folder found`);
+        console.log(`  ✅ Assets folder FOUND`);
       }
     } catch (err) {
       console.error(`  ❌ Error reading directory:`, err.message);
     }
   }
-});
-
-// Fallback
-if (!frontendPath) {
-  frontendPath = path.join(__dirname, '../frontend');
-  console.log(`\n⚠️ Using fallback frontend path: ${frontendPath}`);
-  
-  // Cek apakah fallback path ada
-  if (fs.existsSync(frontendPath)) {
-    console.log(`✅ Fallback path exists`);
-    console.log(`Contents:`, fs.readdirSync(frontendPath));
-  } else {
-    console.error(`❌ Fallback path DOES NOT EXIST!`);
-  }
 }
-console.log('========== END DEBUG ==========\n');
 
-// Middleware
+// Fallback ke path yang paling mungkin
+if (!frontendPath) {
+  frontendPath = '/app/frontend';
+  console.log(`\n⚠️ Using fallback path: ${frontendPath}`);
+  
+  // Coba buat direktori virtual
+  console.log(`  Catatan: Path ini mungkin tidak ada, tapi akan kita gunakan sebagai referensi`);
+}
+
+console.log(`\n✅ FINAL FRONTEND PATH: ${frontendPath}`);
+console.log('========== END PATH DEBUG ==========\n');
+
+// Middleware dengan logging
 app.use((req, res, next) => {
   console.log(`\n📨 ${req.method} ${req.url}`);
   next();
@@ -112,56 +112,63 @@ console.log('✅ JSON middleware');
 app.use(express.urlencoded({ extended: true }));
 console.log('✅ URL encoded middleware');
 
-// ========== STATIC FILES ==========
+// ========== SERVE STATIC FILES ==========
+// Serve assets
 try {
-  if (frontendPath && fs.existsSync(frontendPath)) {
-    const assetsPath = path.join(frontendPath, 'assets');
-    if (fs.existsSync(assetsPath)) {
-      app.use('/assets', express.static(assetsPath));
-      console.log('✅ Assets static middleware');
-    } else {
-      console.log('⚠️ Assets folder not found');
-    }
+  const assetsPath = path.join(frontendPath, 'assets');
+  if (fs.existsSync(assetsPath)) {
+    app.use('/assets', express.static(assetsPath));
+    console.log('✅ Assets static middleware - serving from:', assetsPath);
   } else {
-    console.log('⚠️ Frontend path not valid, skipping static files');
+    console.log('⚠️ Assets folder not found at:', assetsPath);
   }
 } catch (err) {
-  console.error('❌ Error setting up static files:', err);
+  console.error('❌ Error setting up assets:', err);
 }
 
-// ========== ROUTES MANUAL DENGAN ERROR HANDLING ==========
+// ========== ROUTES MANUAL UNTUK HTML ==========
 // Halaman Admin
 app.get('/admin', (req, res) => {
   try {
     const filePath = path.join(frontendPath, 'admin', 'index.html');
-    console.log(`📄 Trying to serve: ${filePath}`);
+    console.log(`📄 Trying to serve admin login: ${filePath}`);
     
     if (fs.existsSync(filePath)) {
       res.sendFile(filePath);
     } else {
-      console.error(`❌ File not found: ${filePath}`);
-      res.status(404).send('Admin login page not found');
+      console.error(`❌ Admin login file not found at: ${filePath}`);
+      res.status(404).send(`
+        <html>
+          <head><title>404 Not Found</title></head>
+          <body>
+            <h1>404 - Admin Login Page Not Found</h1>
+            <p>Looking for: ${filePath}</p>
+            <p>Frontend path: ${frontendPath}</p>
+            <p>Please check your file structure.</p>
+          </body>
+        </html>
+      `);
     }
   } catch (err) {
     console.error('❌ Error serving /admin:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).send('Internal Server Error');
   }
 });
 
 app.get('/admin/dashboard', (req, res) => {
   try {
     const filePath = path.join(frontendPath, 'admin', 'dashboard.html');
-    console.log(`📄 Trying to serve: ${filePath}`);
+    console.log(`📄 Trying to serve admin dashboard: ${filePath}`);
     
     if (fs.existsSync(filePath)) {
       res.sendFile(filePath);
     } else {
-      console.error(`❌ File not found: ${filePath}`);
+      console.error(`❌ Admin dashboard file not found at: ${filePath}`);
       res.status(404).send('Admin dashboard not found');
     }
   } catch (err) {
     console.error('❌ Error serving /admin/dashboard:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).send('Internal Server Error');
   }
 });
 
@@ -169,66 +176,67 @@ app.get('/admin/dashboard', (req, res) => {
 app.get('/user', (req, res) => {
   try {
     const filePath = path.join(frontendPath, 'user', 'index.html');
-    console.log(`📄 Trying to serve: ${filePath}`);
+    console.log(`📄 Trying to serve user login: ${filePath}`);
     
     if (fs.existsSync(filePath)) {
       res.sendFile(filePath);
     } else {
-      console.error(`❌ File not found: ${filePath}`);
+      console.error(`❌ User login file not found at: ${filePath}`);
       res.status(404).send('User login page not found');
     }
   } catch (err) {
     console.error('❌ Error serving /user:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).send('Internal Server Error');
   }
 });
 
 app.get('/user/dashboard', (req, res) => {
   try {
     const filePath = path.join(frontendPath, 'user', 'dashboard.html');
-    console.log(`📄 Trying to serve: ${filePath}`);
+    console.log(`📄 Trying to serve user dashboard: ${filePath}`);
     
     if (fs.existsSync(filePath)) {
       res.sendFile(filePath);
     } else {
-      console.error(`❌ File not found: ${filePath}`);
+      console.error(`❌ User dashboard file not found at: ${filePath}`);
       res.status(404).send('User dashboard not found');
     }
   } catch (err) {
     console.error('❌ Error serving /user/dashboard:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).send('Internal Server Error');
   }
 });
 
 app.get('/user/register', (req, res) => {
   try {
     const filePath = path.join(frontendPath, 'user', 'register.html');
-    console.log(`📄 Trying to serve: ${filePath}`);
+    console.log(`📄 Trying to serve user register: ${filePath}`);
     
     if (fs.existsSync(filePath)) {
       res.sendFile(filePath);
     } else {
-      console.error(`❌ File not found: ${filePath}`);
+      console.error(`❌ User register file not found at: ${filePath}`);
       res.status(404).send('User register page not found');
     }
   } catch (err) {
     console.error('❌ Error serving /user/register:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).send('Internal Server Error');
   }
 });
 
-// Test route
+// Test route untuk cek server
 app.get('/test', (req, res) => {
   console.log('✅ Test route accessed');
   res.json({ 
     message: 'Server is working!',
     frontendPath: frontendPath,
     nodeEnv: process.env.NODE_ENV,
-    port: process.env.PORT
+    port: process.env.PORT,
+    mongodbConnected: mongoose.connection.readyState === 1
   });
 });
 
-// API Routes dengan error handling
+// API Routes
 try {
   console.log('\n📌 Registering API routes...');
   app.use('/api/auth', authRoutes);
@@ -246,6 +254,16 @@ try {
 // ========== 404 HANDLER ==========
 app.use((req, res) => {
   console.log(`❌ 404: ${req.method} ${req.url} not found`);
+  
+  // Cek apakah ini request untuk file HTML statis
+  if (req.url.endsWith('.html')) {
+    const possibleFile = path.join(frontendPath, req.url);
+    if (fs.existsSync(possibleFile)) {
+      console.log(`📄 File exists tapi tidak terdaftar: ${possibleFile}`);
+      return res.sendFile(possibleFile);
+    }
+  }
+  
   res.status(404).json({ 
     error: 'Route not found',
     path: req.url,
@@ -285,5 +303,5 @@ app.listen(PORT, HOST, () => {
   console.log(`👤 User dashboard: https://blast-app-v1-production.up.railway.app/user/dashboard`);
   console.log(`👤 User register: https://blast-app-v1-production.up.railway.app/user/register`);
   console.log(`📅 ${new Date().toLocaleString()}\n`);
-  console.log('✅ Server ready to accept requests');
+  console.log('✅ Server ready to accept requests from Railway proxy');
 });
