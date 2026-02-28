@@ -40,8 +40,8 @@ app.use(express.urlencoded({ extended: true }));
 console.log('✅ URL encoded middleware');
 
 // Static files
-app.use('/admin', express.static(path.join(__dirname, '../frontend/admin')));
-app.use('/user', express.static(path.join(__dirname, '../frontend/user')));
+app.use('/admin', express.static(path.join(__dirname, '../frontend/admin/index.html')));
+app.use('/user', express.static(path.join(__dirname, '../frontend/user/index.html')));
 app.use('/assets', express.static(path.join(__dirname, '../frontend/assets')));
 console.log('✅ Static files middleware');
 
