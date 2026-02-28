@@ -53,11 +53,10 @@ if (fs.existsSync(frontendPath)) {
 }
 console.log('========== END DEBUG ==========\n');
 
-// Serve static files dengan path absolut
-app.use('/admin', express.static('/app/frontend/admin'));
-app.use('/user', express.static('/app/frontend/user'));
-app.use('/assets', express.static('/app/frontend/assets'));
-
+// Serve static files dari folder public
+app.use('/admin', express.static(path.join(__dirname, 'public/admin')));
+app.use('/user', express.static(path.join(__dirname, 'public/user')));
+app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 // Route untuk test database
 app.get('/test-db', async (req, res) => {
   try {
