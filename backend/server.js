@@ -15,20 +15,24 @@ console.log('Current directory:', __dirname);
 console.log('Frontend path:', path.join(__dirname, '../frontend'));
 
 // Cek apakah folder frontend ada
-const frontendPath = path.join(__dirname, '../frontend');
+// Path yang benar untuk Railway
+const frontendPath = path.join('/app', 'frontend');
+console.log('Frontend path:', frontendPath);
+
+// Cek apakah frontend ada
 if (fs.existsSync(frontendPath)) {
-  console.log('✅ Frontend folder ditemukan!');
+  console.log('✅ Frontend folder DITEMUKAN!');
   console.log('Isi frontend:', fs.readdirSync(frontendPath));
+} else {
+  console.log('❌ Frontend folder TIDAK ditemukan di:', frontendPath);
   
-  // Cek folder admin
-  const adminPath = path.join(frontendPath, 'admin');
-  if (fs.existsSync(adminPath)) {
-    console.log('✅ Admin folder ditemukan');
-    console.log('Isi admin:', fs.readdirSync(adminPath));
-  } else {
-    console.log('❌ Admin folder TIDAK ditemukan');
+  // Coba path alternatif
+  const altPath = path.join(process.cwd(), 'frontend');
+  console.log('Mencoba alternatif:', altPath);
+  if (fs.existsSync(altPath)) {
+    console.log('✅ Ditemukan di alternatif!');
   }
-  
+}
   // Cek folder user
   const userPath = path.join(frontendPath, 'user');
   if (fs.existsSync(userPath)) {
