@@ -79,10 +79,12 @@ console.log('📌 Connecting to database...');
 connectDB();
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`\n🚀 Server running on port ${PORT}`);
-  console.log(`📊 Admin URL: http://localhost:${PORT}/admin`);
-  console.log(`👤 User URL: http://localhost:${PORT}/user`);
+const HOST = '0.0.0.0'; // atau '::' untuk IPv6
+
+app.listen(PORT, HOST, () => {
+  console.log(`\n🚀 Server running on http://${HOST}:${PORT}`);
+  console.log(`📊 Admin URL: http://localhost:${PORT}/admin (for local)`);
+  console.log(`👤 User URL: http://localhost:${PORT}/user (for local)`);
   console.log(`📅 ${new Date().toLocaleString()}\n`);
-  console.log('✅ Server ready to accept requests');
+  console.log('✅ Server ready to accept requests from Railway proxy');
 });
