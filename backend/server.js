@@ -39,14 +39,32 @@ console.log('\n========== RAILWAY PATH DEBUG ==========');
 console.log('__dirname:', __dirname);
 console.log('Current working directory:', process.cwd());
 
-// Path yang mungkin benar untuk Railway
+// List semua file di current directory
+console.log('\n📁 Files in current directory:');
+try {
+  const files = fs.readdirSync(process.cwd());
+  console.log(files);
+} catch (err) {
+  console.error('Error reading current dir:', err);
+}
+
+// List semua file di root /app
+console.log('\n📁 Files in /app directory:');
+try {
+  const files = fs.readdirSync('/app');
+  console.log(files);
+} catch (err) {
+  console.error('Error reading /app dir:', err);
+}
+
+// Path yang mungkin benar
 const possiblePaths = [
-  path.join(__dirname, '../frontend'),                    // /app/backend/../frontend = /app/frontend
+  path.join(__dirname, '../frontend'),                    // /app/backend/../frontend
   path.join(process.cwd(), 'frontend'),                   // /app/frontend
-  '/app/frontend',                                         // Hardcoded path
-  path.join('/app', 'frontend'),                           // /app/frontend
+  '/app/frontend',
+  path.join('/app', 'frontend'),
   path.join(__dirname, '../../frontend'),                  // /frontend
-  '/frontend',                                             // /frontend
+  '/frontend',
 ];
 
 let frontendPath = null;
@@ -64,20 +82,21 @@ for (const p of possiblePaths) {
       // Cek folder admin dan user
       const adminPath = path.join(p, 'admin');
       const userPath = path.join(p, 'user');
-      const assetsPath = path.join(p, 'assets');
       
       if (fs.existsSync(adminPath)) {
         console.log(`  ✅ Admin folder FOUND at ${adminPath}`);
         console.log(`  Admin files:`, fs.readdirSync(adminPath));
         frontendPath = p;
+      } else {
+        console.log(`  ❌ Admin folder NOT found at ${adminPath}`);
       }
+      
       if (fs.existsSync(userPath)) {
         console.log(`  ✅ User folder FOUND at ${userPath}`);
         console.log(`  User files:`, fs.readdirSync(userPath));
         frontendPath = p;
-      }
-      if (fs.existsSync(assetsPath)) {
-        console.log(`  ✅ Assets folder FOUND`);
+      } else {
+        console.log(`  ❌ User folder NOT found at ${userPath}`);
       }
     } catch (err) {
       console.error(`  ❌ Error reading directory:`, err.message);
@@ -85,18 +104,8 @@ for (const p of possiblePaths) {
   }
 }
 
-// Fallback ke path yang paling mungkin
-if (!frontendPath) {
-  frontendPath = '/app/frontend';
-  console.log(`\n⚠️ Using fallback path: ${frontendPath}`);
-  
-  // Coba buat direktori virtual
-  console.log(`  Catatan: Path ini mungkin tidak ada, tapi akan kita gunakan sebagai referensi`);
-}
-
 console.log(`\n✅ FINAL FRONTEND PATH: ${frontendPath}`);
 console.log('========== END PATH DEBUG ==========\n');
-
 // Middleware dengan logging
 app.use((req, res, next) => {
   console.log(`\n📨 ${req.method} ${req.url}`);
