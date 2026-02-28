@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs'); // Tambah ini
+const fs = require('fs');
 const mongoose = require('mongoose');
 const connectDB = require('./config/database');
 
@@ -12,9 +12,8 @@ connectDB();
 // ========== DEBUG STATIC FILES ==========
 console.log('\n========== STATIC FILES DEBUG ==========');
 console.log('Current directory:', __dirname);
-console.log('Frontend path:', path.join(__dirname, '../frontend'));
+console.log('Current working dir:', process.cwd());
 
-// Cek apakah folder frontend ada
 // Path yang benar untuk Railway
 const frontendPath = path.join('/app', 'frontend');
 console.log('Frontend path:', frontendPath);
@@ -23,16 +22,16 @@ console.log('Frontend path:', frontendPath);
 if (fs.existsSync(frontendPath)) {
   console.log('✅ Frontend folder DITEMUKAN!');
   console.log('Isi frontend:', fs.readdirSync(frontendPath));
-} else {
-  console.log('❌ Frontend folder TIDAK ditemukan di:', frontendPath);
   
-  // Coba path alternatif
-  const altPath = path.join(process.cwd(), 'frontend');
-  console.log('Mencoba alternatif:', altPath);
-  if (fs.existsSync(altPath)) {
-    console.log('✅ Ditemukan di alternatif!');
+  // Cek folder admin
+  const adminPath = path.join(frontendPath, 'admin');
+  if (fs.existsSync(adminPath)) {
+    console.log('✅ Admin folder ditemukan');
+    console.log('Isi admin:', fs.readdirSync(adminPath));
+  } else {
+    console.log('❌ Admin folder TIDAK ditemukan');
   }
-}
+  
   // Cek folder user
   const userPath = path.join(frontendPath, 'user');
   if (fs.existsSync(userPath)) {
@@ -42,7 +41,15 @@ if (fs.existsSync(frontendPath)) {
     console.log('❌ User folder TIDAK ditemukan');
   }
 } else {
-  console.log('❌ Frontend folder TIDAK ditemukan!');
+  console.log('❌ Frontend folder TIDAK ditemukan di:', frontendPath);
+  
+  // Coba path alternatif
+  const altPath = path.join(process.cwd(), 'frontend');
+  console.log('Mencoba alternatif:', altPath);
+  if (fs.existsSync(altPath)) {
+    console.log('✅ Ditemukan di alternatif!');
+    console.log('Isi:', fs.readdirSync(altPath));
+  }
 }
 console.log('========== END DEBUG ==========\n');
 
