@@ -1,11 +1,28 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 const connectDB = require('./config/database');
 
+// Import routes
+const authRoutes = require('./routes/auth');
+
 const app = express();
-const PORT = process.env.PORT || 3000;
+
+// Middleware untuk parse JSON (PENTING UNTUK LOGIN!)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Connect ke database
+connectDB();
+
+// Route test sederhana
+app.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Server jalan!',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Route untuk halaman admin
 app.get('/admin', (req, res) => {
@@ -31,17 +48,30 @@ app.get('/user', (req, res) => {
     }
 });
 
-// Route untuk test koneksi database dari dalam Railway
+// Route untuk register user
+app.get('/user/register', (req, res) => {
+    const filePath = path.join(__dirname, 'public', 'register.html');
+    console.log('Mencoba baca:', filePath);
+    
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.send('File register.html tidak ditemukan');
+    }
+});
+
+// API Routes (PENTING UNTUK LOGIN!)
+app.use('/api/auth', authRoutes);
+
+// Route untuk test koneksi database
 app.get('/debug-db', async (req, res) => {
   try {
     console.log('🔍 Debug DB - Mencoba konek...');
     
-    // Cek mongoose dulu
     if (!mongoose) {
-      return res.json({ error: 'mongoose is not defined - missing require' });
+      return res.json({ error: 'mongoose is not defined' });
     }
     
-    // Cek environment variable
     const mongoUrl = process.env.MONGO_URL || process.env.MONGODB_URI;
     
     const info = {
@@ -49,19 +79,17 @@ app.get('/debug-db', async (req, res) => {
       env: {
         MONGO_URL_exists: !!process.env.MONGO_URL,
         MONGODB_URI_exists: !!process.env.MONGODB_URI,
-        MONGO_URL_value: process.env.MONGO_URL ? '✅ ada' : '❌ tidak ada',
         NODE_ENV: process.env.NODE_ENV
       },
       connection: null,
       error: null
     };
     
-    // Coba konek dengan opsi yang tepat
     const conn = await mongoose.createConnection(mongoUrl, {
       serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 5000,
       socketTimeoutMS: 5000,
-      authSource: 'admin', // Penting untuk Railway
+      authSource: 'admin',
       dbName: 'blast_app'
     });
     
@@ -81,14 +109,20 @@ app.get('/debug-db', async (req, res) => {
     res.json({
       error: error.message,
       code: error.code,
-      name: error.name,
-      stack: error.stack
+      name: error.name
     });
   }
 });
 
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 Admin: http://localhost:${PORT}/admin`);
     console.log(`👤 User: http://localhost:${PORT}/user`);
+    console.log(`🔍 Test: http://localhost:${PORT}/test`);
 });
