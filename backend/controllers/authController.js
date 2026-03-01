@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-
+const mongoose = require('mongoose');
 // Register
 const register = async (req, res) => {
   try {
