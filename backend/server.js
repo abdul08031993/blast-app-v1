@@ -33,6 +33,51 @@ app.get('/user', (req, res) => {
 app.get('/test', (req, res) => {
     res.json({ message: 'Server OK!' });
 });
+// Route untuk test koneksi database dari dalam Railway
+app.get('/debug-db', async (req, res) => {
+  try {
+    console.log('🔍 Debug DB - Mencoba konek...');
+    
+    // Cek environment variable
+    const mongoUrl = process.env.MONGO_URL || process.env.MONGODB_URI;
+    
+    const info = {
+      env: {
+        MONGO_URL_exists: !!process.env.MONGO_URL,
+        MONGODB_URI_exists: !!process.env.MONGODB_URI,
+        NODE_ENV: process.env.NODE_ENV
+      },
+      connection: null,
+      error: null
+    };
+    
+    // Coba konek
+    const conn = await mongoose.createConnection(mongoUrl, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
+      socketTimeoutMS: 5000
+    });
+    
+    await conn.asPromise();
+    
+    info.connection = {
+      status: '✅ CONNECTED',
+      host: conn.host,
+      name: conn.name
+    };
+    
+    await conn.close();
+    res.json(info);
+    
+  } catch (error) {
+    console.error('❌ Debug DB Error:', error);
+    res.json({
+      error: error.message,
+      code: error.code,
+      name: error.name
+    });
+  }
+});
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
